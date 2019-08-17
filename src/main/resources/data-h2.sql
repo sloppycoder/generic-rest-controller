@@ -1,0 +1,10 @@
+insert into card_transaction(id, amount, memo) values (1, 10.00, 'meal');
+insert into card_transaction(id, amount, memo) values (2, 20.00, 'wine');
+insert into card_transaction(id, amount, memo) values (3, 101.00, 'hotel');
+insert into card_transaction(id, amount, memo) values (4, 22.00, 'mini bar');
+insert into card_transaction(id, amount, memo) values (5, 30.00, 'taxi');
+insert into card_transaction(id, amount, memo) values (6, 45.00, 'massage');
+insert into card_transaction(id, amount, memo) values (7, 66.00, 'gadget');
+insert into card_transaction(id, amount, memo) values (8, 2000.00, 'plane ticket');
+insert into card_transaction(id, amount, memo) values (9, 1.00, 'ice cream');
+insert into card_transaction(id, amount, memo) values (10, 0.20, 'change');
