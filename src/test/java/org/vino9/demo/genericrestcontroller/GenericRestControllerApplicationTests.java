@@ -40,6 +40,13 @@ public class GenericRestControllerApplicationTests {
 	}
 
 	@Test
+	public void find_all_by_page() throws Exception {
+		mock.perform(get("/transactions/?page=1&per_page=2"))
+				.andDo(print())
+				.andExpect(status().isOk());
+	}
+
+	@Test
 	public void create_new_transaction() throws Exception {
 		String newTransaction = "{ \"id\": 100, \"amount\": 11.11, \"memo\": \"new stuff\" }";
 		mock.perform(
