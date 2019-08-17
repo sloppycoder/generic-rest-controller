@@ -103,16 +103,6 @@ abstract public class BaseRestController<T, ID> {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @RequestMapping(method = RequestMethod.OPTIONS)
-    public ResponseEntity<T> options() {
-        return new ResponseEntity<>(HttpStatus.METHOD_NOT_ALLOWED);
-    }
-
-    @RequestMapping(method = RequestMethod.HEAD)
-    public ResponseEntity<T> head() {
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
     // Catch All exception handler
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> exceptionHandler(Exception e) {
