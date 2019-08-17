@@ -1,15 +1,24 @@
 package org.vino9.demo.genericrestcontroller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,6 +27,9 @@ import static org.vino9.demo.genericrestcontroller.RestApiUtils.paginationResult
 
 @Slf4j
 abstract public class BaseRestController<T, ID> {
+
+    @Autowired
+    private Jackson2ObjectMapperBuilder builder;
 
     private PagingAndSortingRepository<T, ID> repository;
 
@@ -39,7 +51,9 @@ abstract public class BaseRestController<T, ID> {
     }
 
     @GetMapping("")
-    public ResponseEntity list(@RequestParam(value = "id", required = false) ID id, @RequestParam Map<String, String> params, HttpServletRequest request) {
+    public ResponseEntity list(@RequestParam(value = "id", required = false) ID id,
+                               @RequestParam Map<String, String> params,
+                               HttpServletRequest request) {
 
         // if id parameter exists then ignore all other parameters
         if (id != null) {
@@ -60,15 +74,56 @@ abstract public class BaseRestController<T, ID> {
         return new ResponseEntity<>(savedEntity, HttpStatus.CREATED);
     }
 
+    @PatchMapping("{id}")
+    public ResponseEntity<T> patch(@PathVariable("id") ID id,
+                                   @RequestBody String body) {
 
-    @PatchMapping
-    public ResponseEntity<T> patch(@RequestBody T updates) {
-        // How do I know which attributes in T is present in request body??
-        return new ResponseEntity<>(HttpStatus.METHOD_NOT_ALLOWED);
+        Optional<T> foundEntity = repository.findById(id);
+        if (! foundEntity.isPresent()) {
+            log.debug("entity with id = {} does not exist, cannot patch", id);
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        T currentEntity = foundEntity.get();
+
+        ObjectMapper mapper = builder.build();
+
+        // we need to know exactly which fields the request body contain in order to know which fields to update
+        // we'll deserialized the body twice, first time into a T object, 2nd as a map
+        // then use the map keys to find out which fields exists in the request body
+        try {
+
+            // black magic to deal with Java type erasure
+            // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
+            Class<T> clazz = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+            T entityPatch = mapper.readValue(body, clazz);
+            String className = clazz.getName();
+
+            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
+            HashMap<String, Object> patch = mapper.readValue(body, typeRef);
+
+            BeanWrapper wrapperSource = new BeanWrapperImpl(entityPatch);
+            BeanWrapper wrapperTarget = new BeanWrapperImpl(currentEntity);
+            Object entityId = wrapperSource.getPropertyValue("id");
+
+            for (String key : patch.keySet()) {
+                if (! "id".equalsIgnoreCase(key)) {
+                    log.debug("copying beaning property to entity {} with id of {} ", className, entityId, key);
+                    wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
+                }
+            }
+        } catch (IOException e) {
+            // since we're reading from a string, this is impossible...
+        }
+
+        T updatedEntity = repository.save(currentEntity);
+
+        return new ResponseEntity<T>(updatedEntity, HttpStatus.OK);
     }
 
-    @PutMapping
-    public ResponseEntity<T> put(@Valid @RequestBody T updatedEntity) {
+    @PutMapping("{id}")
+    public ResponseEntity<T> put(@PathVariable("id") ID id, @Valid @RequestBody T updatedEntity) {
+        // what to do if request body contains an id that is different from path variable??
         T savedEntity = repository.save(updatedEntity);
         return new ResponseEntity<>(HttpStatus.OK);
     }

@@ -3,15 +3,15 @@ package org.vino9.demo.genericrestcontroller;
 import org.hamcrest.core.IsNull;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.internal.matchers.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringRunner.class)
@@ -88,6 +88,16 @@ public class GenericRestControllerApplicationTests {
 				post("/transactions").contentType("application/json").content(newTransaction))
 				.andDo(print())
 				.andExpect(status().isInternalServerError());
+	}
+
+	@Test
+	public void updating_existing_transaction() throws Exception {
+		String patch = "{ \"memo\": \"updated stuff\" }";
+		mock.perform(
+				patch("/transactions/1").contentType("application/json").content(patch))
+				.andDo(print())
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(".memo", hasItem("updated stuff")));
 	}
 
 	@Test
