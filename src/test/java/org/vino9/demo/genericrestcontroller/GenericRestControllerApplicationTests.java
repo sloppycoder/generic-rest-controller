@@ -1,7 +1,9 @@
 package org.vino9.demo.genericrestcontroller;
 
+import org.hamcrest.core.IsNull;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.internal.matchers.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,8 +23,7 @@ public class GenericRestControllerApplicationTests {
 	private MockMvc mock;
 
 	@Test
-	public void contextLoads() {
-	}
+	public void context_loads() {}
 
 	@Test
 	public void get_by_id() throws Exception {
@@ -39,10 +40,36 @@ public class GenericRestControllerApplicationTests {
 	}
 
 	@Test
-	public void find_all_by_page() throws Exception {
-		mock.perform(get("/transactions/?page=1&per_page=2"))
+	public void first_page_has_no_prev() throws Exception {
+		// DB has 10 records total, page number is 0 based
+		mock.perform(get("/transactions/?page=0&per_page=4"))
 				.andDo(print())
-				.andExpect(status().isOk());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._meta_.next").value(IsNull.notNullValue()))
+				.andExpect(jsonPath("$._meta_.prev").doesNotExist());
+
+	}
+
+	@Test
+	public void last_page_has_no_prev() throws Exception {
+		// DB has 10 records total, page number is 0 based
+		mock.perform(get("/transactions/?page=2&per_page=4"))
+				.andDo(print())
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._meta_.prev").value(IsNull.notNullValue()))
+				.andExpect(jsonPath("$._meta_.next").doesNotExist());
+	}
+
+	@Test
+	public void only_one_page() throws Exception {
+		// DB has 10 records total, page number is 0 based
+		mock.perform(get("/transactions/?page=0&per_page=20"))
+				.andDo(print())
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$._meta_.curr").value(IsNull.notNullValue()))
+				.andExpect(jsonPath("$._meta_.prev").doesNotExist())
+				.andExpect(jsonPath("$._meta_.next").doesNotExist());
+
 	}
 
 	@Test
