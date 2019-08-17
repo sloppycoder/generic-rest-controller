@@ -12,6 +12,6 @@ public class TransactionController extends BaseRestController<CardTransaction, L
 
     @Autowired
     public TransactionController(CardTransactionRepository repo) {
-        super(repo, new LongIdConverter());
+        super(repo);
     }
 }

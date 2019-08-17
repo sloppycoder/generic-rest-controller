@@ -20,11 +20,9 @@ import static org.vino9.demo.genericrestcontroller.RestControllerUtils.paginatio
 abstract public class BaseRestController<T, ID> {
 
     private PagingAndSortingRepository<T, ID> repository;
-    private IdConverter<ID> idIdConverter;
 
-    public BaseRestController(PagingAndSortingRepository<T, ID> repository, IdConverter<ID> converter) {
+    public BaseRestController(PagingAndSortingRepository<T, ID> repository) {
         this.repository = repository;
-        this.idIdConverter = converter;
     }
 
     @GetMapping("{id}")
@@ -41,11 +39,11 @@ abstract public class BaseRestController<T, ID> {
     }
 
     @GetMapping("")
-    public ResponseEntity list(@RequestParam Map<String, String> params, HttpServletRequest request) {
+    public ResponseEntity list(@RequestParam(value = "id", required = false) ID id, @RequestParam Map<String, String> params, HttpServletRequest request) {
 
         // if id parameter exists then ignore all other parameters
-        if (params.containsKey("id")) {
-            return getById(idIdConverter.convert(params.get("id")));
+        if (id != null) {
+            return getById(id);
         }
 
         Pageable pageable = getPageableFromParams(params, 2);
