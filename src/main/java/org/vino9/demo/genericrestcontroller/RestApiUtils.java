@@ -7,7 +7,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RestControllerUtils {
+import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGE_NO;
+import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGE_SIZE;
+
+public class RestApiUtils {
 
     static public int getParamAsInt(Map<String, String> params, String key, int defaultValue) {
         return params.containsKey(key) ? Integer.valueOf(params.get(key)).intValue() : defaultValue;
@@ -18,8 +21,8 @@ public class RestControllerUtils {
     }
 
     static public Pageable getPageableFromParams(Map<String, String> params, int defaultPageSize) {
-        int page = getParamAsInt(params, "page", 0);
-        int perPage = getParamAsInt(params, "per_page", defaultPageSize);
+        int page = getParamAsInt(params, PAGE_NO, 0);
+        int perPage = getParamAsInt(params, PAGE_SIZE, defaultPageSize);
 
         return PageRequest.of(page, perPage);
     }
@@ -29,8 +32,8 @@ public class RestControllerUtils {
         int perPage = currPage.getSize();
 
         HashMap<String, Object> meta = new HashMap<>(Map.of(
-                "page", pageNo,
-                "per_page", perPage,
+                PAGE_NO, pageNo,
+                PAGE_SIZE, perPage,
                 "curr", getUrlForPageable(currPage.getPageable(), url)
         ));
 

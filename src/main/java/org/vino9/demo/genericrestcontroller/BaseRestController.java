@@ -13,8 +13,8 @@ import javax.validation.Valid;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.vino9.demo.genericrestcontroller.RestControllerUtils.getPageableFromParams;
-import static org.vino9.demo.genericrestcontroller.RestControllerUtils.paginationResult;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.getPageableFromParams;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.paginationResult;
 
 @Slf4j
 abstract public class BaseRestController<T, ID> {
