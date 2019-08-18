@@ -116,6 +116,12 @@ abstract public class BaseRestApiController<T, ID> {
         return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<String> exceptionHandler(AccessDeniedException e) {
+        log.info("{}", e);
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
     // Catch All exception handler
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> exceptionHandler(Exception e) {
