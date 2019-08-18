@@ -27,15 +27,12 @@ public class RestApiUtils {
         return PageRequest.of(page, perPage);
     }
 
-    static public Map<String, Object> paginationResult(Page<?> currPage, String url) {
-        int pageNo = currPage.getNumber();
-        int perPage = currPage.getSize();
+    static public Map<String, Object> paginationMeta(Page<?> currPage, String url) {
+        HashMap<String, Object> meta = new HashMap<>();
 
-        HashMap<String, Object> meta = new HashMap<>(Map.of(
-                PAGE_NO, pageNo,
-                PAGE_SIZE, perPage,
-                "curr", getUrlForPageable(currPage.getPageable(), url)
-        ));
+        meta.put(PAGE_NO, currPage.getNumber());
+        meta.put(PAGE_SIZE, currPage.getSize());
+        meta.put("curr", getUrlForPageable(currPage.getPageable(), url));
 
         if (currPage.hasPrevious()) {
             meta.put("prev", getUrlForPageable(currPage.previousPageable(), url));
@@ -45,10 +42,7 @@ public class RestApiUtils {
             meta.put("next", getUrlForPageable(currPage.nextPageable(), url));
         }
 
-        return Map.of(
-                "_meta_", meta,
-                "data", currPage.getContent()
-        );
+        return meta;
     }
 
     static public String getUrlForPageable(Pageable pageable, String url) {

@@ -3,6 +3,7 @@ package org.vino9.demo.genericrestcontroller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,17 +14,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.bind.annotation.*;
+import org.vino9.demo.genericrestcontroller.data.EntityNotExistException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.vino9.demo.genericrestcontroller.RestApiUtils.getPageableFromParams;
-import static org.vino9.demo.genericrestcontroller.RestApiUtils.paginationResult;
+import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
+import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_META;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.*;
 
 @Slf4j
 abstract public class BaseRestController<T, ID> {
@@ -38,34 +42,38 @@ abstract public class BaseRestController<T, ID> {
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<T> getById(@PathVariable ID id) {
-        Optional<T> entity = repository.findById(id);
-        if (entity.isPresent()) {
-            log.debug("returning entity with id = {}", id);
-            return new ResponseEntity<>(entity.get(), HttpStatus.OK);
-        } else {
-            //TODO: add error object with L10N error message
-            log.debug("entity with id = {} not found", id);
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    public T getById(@PathVariable ID id) throws EntityNotExistException {
+        return  findEntityById(id);
     }
 
     @GetMapping("")
-    public ResponseEntity list(@RequestParam(value = "id", required = false) ID id,
-                               @RequestParam Map<String, String> params,
-                               HttpServletRequest request) {
+    public HashMap<String, Object> list(@RequestParam(value = "id", required = false) ID id,
+                                        @RequestParam Map<String, String> params,
+                                        HttpServletRequest request) {
+
+        HashMap<String, Object> result = new HashMap<>();
 
         // if id parameter exists then ignore all other parameters
         if (id != null) {
-            return getById(id);
+            ArrayList<T> entityList = new ArrayList<>();
+
+            // we don't use getById to avoid unnecessary exception logs
+            Optional<T> found = repository.findById(id);
+            if (found.isPresent()) {
+                entityList.add(found.get());
+            }
+            result.put(PAGINATION_DATA, entityList);
+            return result;
         }
 
         Pageable pageable = getPageableFromParams(params, 2);
         // be careful, below call result in a select count query
         Page<T> resultPage = repository.findAll(pageable);
 
-        Map<String, Object> result = paginationResult(resultPage, request.getRequestURI());
-        return new ResponseEntity(result, HttpStatus.OK);
+        result.put(PAGINATION_META, paginationMeta(resultPage, request.getRequestURI()));
+        result.put(PAGINATION_DATA, resultPage.getContent());
+
+        return result;
     }
 
     @PostMapping
@@ -75,28 +83,21 @@ abstract public class BaseRestController<T, ID> {
     }
 
     @PatchMapping("{id}")
-    public ResponseEntity<T> patch(@PathVariable("id") ID id,
-                                   @RequestBody String body) {
+    public T patch(@PathVariable("id") ID id,
+                   @RequestBody String body) throws EntityNotExistException {
 
-        Optional<T> foundEntity = repository.findById(id);
-        if (! foundEntity.isPresent()) {
-            log.debug("entity with id = {} does not exist, cannot patch", id);
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        T currentEntity = foundEntity.get();
-
-        ObjectMapper mapper = builder.build();
+        T currentEntity = findEntityById(id);
 
         // we need to know exactly which fields the request body contain in order to know which fields to update
         // we'll deserialized the body twice, first time into a T object, 2nd as a map
         // then use the map keys to find out which fields exists in the request body
         try {
+            ObjectMapper mapper = builder.build();
 
             // black magic to deal with Java type erasure
             // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
-            Class<T> clazz = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
-            T entityPatch = mapper.readValue(body, clazz);
+            Class<T> clazz = getClassForT();
+            T entityPatch = mapper.readValue(body, getClassForT());
             String className = clazz.getName();
 
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
@@ -116,24 +117,44 @@ abstract public class BaseRestController<T, ID> {
             // since we're reading from a string, this is impossible...
         }
 
-        T updatedEntity = repository.save(currentEntity);
-
-        return new ResponseEntity<T>(updatedEntity, HttpStatus.OK);
+        return repository.save(currentEntity);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<T> put(@PathVariable("id") ID id, @Valid @RequestBody T updatedEntity) {
-        // what to do if request body contains an id that is different from path variable??
-        T savedEntity = repository.save(updatedEntity);
-        return new ResponseEntity<>(HttpStatus.OK);
+    public void put(@PathVariable("id") ID id,
+                                 @Valid @RequestBody T updatedEntity) throws EntityNotExistException {
+        T currentEntity = findEntityById(id);
+        BeanUtils.copyProperties(updatedEntity, currentEntity, new String[]{ "id" });
+        repository.save(updatedEntity);
+    }
+
+    @ExceptionHandler(EntityNotExistException.class)
+    public ResponseEntity<String> exceptionHandler(EntityNotExistException e) {
+        log.info("{}", e);
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     // Catch All exception handler
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> exceptionHandler(Exception e) {
-        log.info("Exception", e);
-        return new ResponseEntity<String>(
-                String.format("%s - %s ", e.getClass().getName(), e.getMessage()),
-                HttpStatus.INTERNAL_SERVER_ERROR);
+        String message = String.format("%s - %s ", e.getClass().getName(), e.getMessage());
+        log.info(message, e);
+        return new ResponseEntity<String>(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    private T findEntityById(ID id) throws EntityNotExistException {
+        Optional<T> found = repository.findById(id);
+        if (found.isPresent()) {
+            return found.get();
+        }
+
+        String message = String.format("Entity of type %s with id = %s not found", getClassForT().getName(), id.toString());
+        log.debug("{}", message);
+        throw new EntityNotExistException(message);
+    }
+
+    private Class<T> getClassForT() {
+        return (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+    } 
+
 }

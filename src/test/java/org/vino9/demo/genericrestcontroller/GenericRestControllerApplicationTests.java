@@ -36,7 +36,8 @@ public class GenericRestControllerApplicationTests {
 	public void find_by_id() throws Exception {
 		mock.perform(get("/transactions/?id=1"))
 				.andDo(print())
-				.andExpect(status().isOk());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data").value(IsNull.notNullValue()));
 	}
 
 	@Test
