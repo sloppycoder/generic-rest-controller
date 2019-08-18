@@ -8,10 +8,10 @@ import org.vino9.demo.genericrestcontroller.data.CardTransactionRepository;
 
 @RestController
 @RequestMapping("/transactions")
-public class TransactionController extends BaseRestController<CardTransaction, Long> {
+public class CardTransactionApiController extends BaseRestApiController<CardTransaction, Long> {
 
     @Autowired
-    public TransactionController(CardTransactionRepository repo) {
+    public CardTransactionApiController(CardTransactionRepository repo) {
         super(repo);
     }
 }

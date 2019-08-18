@@ -30,14 +30,14 @@ import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_M
 import static org.vino9.demo.genericrestcontroller.RestApiUtils.*;
 
 @Slf4j
-abstract public class BaseRestController<T, ID> {
+abstract public class BaseRestApiController<T, ID> {
 
     @Autowired
     private Jackson2ObjectMapperBuilder builder;
 
     private PagingAndSortingRepository<T, ID> repository;
 
-    public BaseRestController(PagingAndSortingRepository<T, ID> repository) {
+    public BaseRestApiController(PagingAndSortingRepository<T, ID> repository) {
         this.repository = repository;
     }
 
