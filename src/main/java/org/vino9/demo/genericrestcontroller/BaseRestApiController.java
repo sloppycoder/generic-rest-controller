@@ -64,7 +64,9 @@ abstract public class BaseRestApiController<T, ID> {
             result.put(PAGINATION_META, paginationMeta(resultPage, request.getRequestURI()));
             result.put(PAGINATION_DATA, resultPage.getContent());
         } else {
-
+            ArrayList<T> entityList = new ArrayList<>();
+            queryForEntities(params).forEach( item -> entityList.add(item) );
+            result.put(PAGINATION_DATA, entityList);
         }
 
 
@@ -122,7 +124,7 @@ abstract public class BaseRestApiController<T, ID> {
     // methods related to handle the data entities are delegated to the child class
     abstract public T findEntityById(ID id) throws EntityNotExistException;
     abstract public T saveEntity(T entity);
-    abstract public List<T> queryForEntities(Map<String, String> params);
+    abstract public Iterable<T> queryForEntities(Map<String, String> params);
     abstract public Page<T> queryForEntitiesByPage(Map<String, String> params, Pageable pageable);
     abstract public boolean isPaginationSupported();
     abstract public int getDefaultPageSize();
