@@ -83,15 +83,6 @@ public class GenericRestControllerApplicationTests {
 	}
 
 	@Test
-	public void mal_formed_new_transaction() throws Exception {
-		String newTransaction = "{ \"id\": 1, \"amount\":\" 11.a1\", \"memo\": \"new stuff\" }";
-		mock.perform(
-				post("/transactions").contentType("application/json").content(newTransaction))
-				.andDo(print())
-				.andExpect(status().isInternalServerError());
-	}
-
-	@Test
 	public void updating_existing_transaction() throws Exception {
 		String patch = "{ \"memo\": \"updated stuff\" }";
 		mock.perform(
@@ -113,6 +104,37 @@ public class GenericRestControllerApplicationTests {
 		mock.perform(options("/transactions"))
 				.andDo(print())
 				.andExpect(header().exists("Allow"));
+	}
+
+	// error conditions
+	@Test
+	public void get_by_id_not_found() throws Exception {
+		mock.perform(get("/transactions/10000"))
+				.andDo(print())
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void patch_by_id_not_found() throws Exception {
+		mock.perform(patch("/transactions/10000").contentType("application/json").content("{}"))
+				.andDo(print())
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void put_by_id_not_found() throws Exception {
+		mock.perform(patch("/transactions/10000").contentType("application/json").content("{}"))
+				.andDo(print())
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void mal_formed_new_transaction() throws Exception {
+		String newTransaction = "{ \"id\": 1, \"amount\":\" 11.a1\", \"memo\": \"new stuff\" }";
+		mock.perform(
+				post("/transactions").contentType("application/json").content(newTransaction))
+				.andDo(print())
+				.andExpect(status().isInternalServerError());
 	}
 
 
