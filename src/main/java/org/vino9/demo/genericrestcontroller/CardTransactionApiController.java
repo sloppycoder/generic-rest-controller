@@ -11,8 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.vino9.demo.genericrestcontroller.data.CardTransaction;
 import org.vino9.demo.genericrestcontroller.data.EntityNotExistException;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/transactions")
@@ -22,7 +21,7 @@ public class CardTransactionApiController extends BaseRestApiController<CardTran
     private PagingAndSortingRepository<CardTransaction, Long> repository;
 
     @Getter private int defaultPageSize = 2;
-    @Getter private boolean paginationSupported = true;
+    @Getter private boolean paginationSupported = false;
 
     @Autowired
     public CardTransactionApiController(PagingAndSortingRepository repository) {
@@ -58,6 +57,12 @@ public class CardTransactionApiController extends BaseRestApiController<CardTran
 
     @Override
     public Iterable<CardTransaction> queryForEntities(Map<String, String> params) {
-        return repository.findAll();
+
+        if (params.containsKey("id")) {
+            List<Long> ids = Arrays.asList(Long.valueOf(params.get("id")));
+            return repository.findAllById(ids);
+        } else {
+            return repository.findAll();
+        }
     }
 }

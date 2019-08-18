@@ -7,10 +7,12 @@ import org.springframework.data.domain.Pageable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGE_NO;
-import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGE_SIZE;
-
 public class RestApiUtils {
+
+    public static final String PAGE_NO = "page";
+    public static final String PAGE_SIZE = "per_page";
+    public static final String PAGINATION_META = "_meta_";
+    public static final String PAGINATION_DATA = "data";
 
     static public int getParamAsInt(Map<String, String> params, String key, int defaultValue) {
         return params.containsKey(key) ? Integer.valueOf(params.get(key)).intValue() : defaultValue;

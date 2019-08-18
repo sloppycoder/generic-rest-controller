@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.*;
 
-import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
-import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_META;
-import static org.vino9.demo.genericrestcontroller.RestApiUtils.getPageableFromParams;
-import static org.vino9.demo.genericrestcontroller.RestApiUtils.paginationMeta;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.*;
 
 @Slf4j
 abstract public class BaseRestApiController<T, ID> {
@@ -44,18 +41,6 @@ abstract public class BaseRestApiController<T, ID> {
 
         HashMap<String, Object> result = new HashMap<>();
 
-        if (id != null) {
-            ArrayList<T> entityList = new ArrayList<>();
-
-            try {
-                entityList.add(findEntityById(id));
-            } catch (EntityNotExistException e) {
-            }
-
-            result.put(PAGINATION_DATA, entityList);
-            return result;
-        }
-
         if (isPaginationSupported()) {
             Pageable pageable = getPageableFromParams(params, getDefaultPageSize());
             // be careful, below call result in a select count query
@@ -68,7 +53,6 @@ abstract public class BaseRestApiController<T, ID> {
             queryForEntities(params).forEach( item -> entityList.add(item) );
             result.put(PAGINATION_DATA, entityList);
         }
-
 
         return result;
     }

@@ -1,7 +1,6 @@
 package org.vino9.demo.genericrestcontroller;
 
 import org.hamcrest.core.IsNull;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +14,7 @@ import static org.junit.Assume.assumeTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.PAGINATION_DATA;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
