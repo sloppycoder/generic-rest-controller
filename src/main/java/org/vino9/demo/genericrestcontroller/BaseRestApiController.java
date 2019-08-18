@@ -145,7 +145,6 @@ abstract public class BaseRestApiController<T, ID> {
     private T getEntityForPatch(String requestBody) {
         // black magic to deal with Java type erasure
         // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
-        Class<T> clazz = getClassForT();
         try {
             return builder.build().readValue(requestBody, getClassForT());
         } catch (IOException e) {
