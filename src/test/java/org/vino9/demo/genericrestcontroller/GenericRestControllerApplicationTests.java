@@ -1,6 +1,7 @@
 package org.vino9.demo.genericrestcontroller;
 
 import org.hamcrest.core.IsNull;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
+import static org.junit.Assume.assumeTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -22,6 +24,9 @@ public class GenericRestControllerApplicationTests {
 
 	@Autowired
 	private MockMvc mock;
+
+	@Autowired
+	private CardTransactionApiController controller;
 
 	@Test
 	public void context_loads() {}
@@ -43,6 +48,8 @@ public class GenericRestControllerApplicationTests {
 
 	@Test
 	public void first_page_has_no_prev() throws Exception {
+		assumeTrue(controller.isPaginationSupported());
+
 		// DB has 10 records total, page number is 0 based
 		mock.perform(get("/transactions/?page=0&per_page=4"))
 				.andDo(print())
@@ -54,6 +61,8 @@ public class GenericRestControllerApplicationTests {
 
 	@Test
 	public void last_page_has_no_prev() throws Exception {
+		assumeTrue(controller.isPaginationSupported());
+
 		// DB has 10 records total, page number is 0 based
 		mock.perform(get("/transactions/?page=2&per_page=4"))
 				.andDo(print())
@@ -64,6 +73,8 @@ public class GenericRestControllerApplicationTests {
 
 	@Test
 	public void only_one_page() throws Exception {
+		assumeTrue(controller.isPaginationSupported());
+
 		// DB has 10 records total, page number is 0 based
 		mock.perform(get("/transactions/?page=0&per_page=20"))
 				.andDo(print())

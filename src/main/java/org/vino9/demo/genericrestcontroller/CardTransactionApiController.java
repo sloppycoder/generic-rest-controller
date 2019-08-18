@@ -22,7 +22,7 @@ public class CardTransactionApiController extends BaseRestApiController<CardTran
     private PagingAndSortingRepository<CardTransaction, Long> repository;
 
     @Getter private int defaultPageSize = 2;
-    @Getter private boolean paginationSupported = false;
+    @Getter private boolean paginationSupported = true;
 
     @Autowired
     public CardTransactionApiController(PagingAndSortingRepository repository) {
