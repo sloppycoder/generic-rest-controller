@@ -88,16 +88,7 @@ abstract public class BaseRestApiController<T, ID> {
         // we need to know exactly which fields the request body contain in order to know which fields to update
         // we'll deserialized the body twice, first time into a T object,
         //  2nd as a map then use the keys to determine which fields exists in the request body
-        BeanWrapper wrapperSource = new BeanWrapperImpl(getEntityForPatch(body));
-        BeanWrapper wrapperTarget = new BeanWrapperImpl(currentEntity);
-
-        String idString = String.format("Entity {} with id = {}", currentEntity.getClass().getName(), id.toString());
-        for (String key : getKeySetFromMap(body)) {
-            if (! "id".equalsIgnoreCase(key)) {
-                log.debug("Copying beaning property {} to {} ", key, idString);
-                wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
-            }
-        }
+        patchEntity(getEntityForPatch(body), currentEntity, getKeySetFromMap(body));
 
         return repository.save(currentEntity);
     }
@@ -106,7 +97,7 @@ abstract public class BaseRestApiController<T, ID> {
     public void put(@PathVariable("id") ID id,
                     @Valid @RequestBody T updatedEntity) throws EntityNotExistException {
         T currentEntity = findEntityById(id);
-        BeanUtils.copyProperties(updatedEntity, currentEntity, new String[]{ "id" });
+        BeanUtils.copyProperties(updatedEntity, currentEntity);
         repository.save(updatedEntity);
     }
 
@@ -140,6 +131,21 @@ abstract public class BaseRestApiController<T, ID> {
         log.debug("{}", message);
         throw new EntityNotExistException(message);
     }
+
+    // use properties from source entity to update target entity
+    private T patchEntity(T source, T target, Set<String> keys) {
+        BeanWrapper wrapperSource = new BeanWrapperImpl(source);
+        BeanWrapper wrapperTarget = new BeanWrapperImpl(target);
+
+        String idString = String.format("Entity {} with id = {}", target.getClass().getName(), "??");
+        keys.stream().forEach( key -> {
+            log.debug("Copying beaning property {} to {} ", key, idString);
+            wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
+        });
+
+        return target;
+    }
+
 
     // deserialize a json payload into an instance of T, used in handler for PATCH method
     private T getEntityForPatch(String requestBody) {
