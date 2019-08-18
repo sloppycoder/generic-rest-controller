@@ -12,4 +12,8 @@ public class CardTransaction {
     Long id;
     double amount;
     String memo;
+
+    public String toString() {
+        return String.format("<CardTransaction:%d>", id);
+    }
 }

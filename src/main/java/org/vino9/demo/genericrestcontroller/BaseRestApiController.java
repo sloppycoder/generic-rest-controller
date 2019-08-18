@@ -8,7 +8,6 @@ import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -24,19 +23,14 @@ import java.util.*;
 
 import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
 import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_META;
-import static org.vino9.demo.genericrestcontroller.RestApiUtils.*;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.getPageableFromParams;
+import static org.vino9.demo.genericrestcontroller.RestApiUtils.paginationMeta;
 
 @Slf4j
 abstract public class BaseRestApiController<T, ID> {
 
     @Autowired
     private Jackson2ObjectMapperBuilder builder;
-
-    private PagingAndSortingRepository<T, ID> repository;
-
-    public BaseRestApiController(PagingAndSortingRepository<T, ID> repository) {
-        this.repository = repository;
-    }
 
     @GetMapping("{id}")
     public T getById(@PathVariable ID id) throws EntityNotExistException {
@@ -50,32 +44,36 @@ abstract public class BaseRestApiController<T, ID> {
 
         HashMap<String, Object> result = new HashMap<>();
 
-        // if id parameter exists then ignore all other parameters
         if (id != null) {
             ArrayList<T> entityList = new ArrayList<>();
 
-            // we don't use getById to avoid unnecessary exception logs
-            Optional<T> found = repository.findById(id);
-            if (found.isPresent()) {
-                entityList.add(found.get());
+            try {
+                entityList.add(findEntityById(id));
+            } catch (EntityNotExistException e) {
             }
+
             result.put(PAGINATION_DATA, entityList);
             return result;
         }
 
-        Pageable pageable = getPageableFromParams(params, 2);
-        // be careful, below call result in a select count query
-        Page<T> resultPage = repository.findAll(pageable);
+        if (isPaginationSupported()) {
+            Pageable pageable = getPageableFromParams(params, getDefaultPageSize());
+            // be careful, below call result in a select count query
+            Page<T> resultPage = queryForEntitiesByPage(params, pageable);
 
-        result.put(PAGINATION_META, paginationMeta(resultPage, request.getRequestURI()));
-        result.put(PAGINATION_DATA, resultPage.getContent());
+            result.put(PAGINATION_META, paginationMeta(resultPage, request.getRequestURI()));
+            result.put(PAGINATION_DATA, resultPage.getContent());
+        } else {
+
+        }
+
 
         return result;
     }
 
     @PostMapping
     public ResponseEntity<T> post(@Valid @RequestBody T newEntity) {
-        T savedEntity = repository.save(newEntity);
+        T savedEntity = saveEntity(newEntity);
         return new ResponseEntity<>(savedEntity, HttpStatus.CREATED);
     }
 
@@ -90,7 +88,7 @@ abstract public class BaseRestApiController<T, ID> {
         //  2nd as a map then use the keys to determine which fields exists in the request body
         patchEntity(getEntityForPatch(body), currentEntity, getKeySetFromMap(body));
 
-        return repository.save(currentEntity);
+        return saveEntity(currentEntity);
     }
 
     @PutMapping("{id}")
@@ -98,7 +96,7 @@ abstract public class BaseRestApiController<T, ID> {
                     @Valid @RequestBody T updatedEntity) throws EntityNotExistException {
         T currentEntity = findEntityById(id);
         BeanUtils.copyProperties(updatedEntity, currentEntity);
-        repository.save(updatedEntity);
+        saveEntity(updatedEntity);
     }
 
     @ExceptionHandler(EntityNotExistException.class)
@@ -121,25 +119,23 @@ abstract public class BaseRestApiController<T, ID> {
         return new ResponseEntity<String>(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    private T findEntityById(ID id) throws EntityNotExistException {
-        Optional<T> found = repository.findById(id);
-        if (found.isPresent()) {
-            return found.get();
-        }
+    // methods related to handle the data entities are delegated to the child class
+    abstract public T findEntityById(ID id) throws EntityNotExistException;
+    abstract public T saveEntity(T entity);
+    abstract public List<T> queryForEntities(Map<String, String> params);
+    abstract public Page<T> queryForEntitiesByPage(Map<String, String> params, Pageable pageable);
+    abstract public boolean isPaginationSupported();
+    abstract public int getDefaultPageSize();
 
-        String message = String.format("Entity of type %s with id = %s not found", getClassForT().getName(), id.toString());
-        log.debug("{}", message);
-        throw new EntityNotExistException(message);
-    }
+    // private methods
 
     // use properties from source entity to update target entity
-    private T patchEntity(T source, T target, Set<String> keys) {
+    protected T patchEntity(T source, T target, Set<String> keys) {
         BeanWrapper wrapperSource = new BeanWrapperImpl(source);
         BeanWrapper wrapperTarget = new BeanWrapperImpl(target);
 
-        String idString = String.format("Entity {} with id = {}", target.getClass().getName(), "??");
         keys.stream().forEach( key -> {
-            log.debug("Copying beaning property {} to {} ", key, idString);
+            log.debug("Copying beaning property {} to {} ", key, target.toString());
             wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
         });
 
@@ -148,7 +144,7 @@ abstract public class BaseRestApiController<T, ID> {
 
 
     // deserialize a json payload into an instance of T, used in handler for PATCH method
-    private T getEntityForPatch(String requestBody) {
+    protected T getEntityForPatch(String requestBody) {
         // black magic to deal with Java type erasure
         // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
         try {
@@ -160,7 +156,7 @@ abstract public class BaseRestApiController<T, ID> {
     }
 
     // deserialize a json payload into a Map, then return the keys as a set
-    private Set<String> getKeySetFromMap(String mapJson) {
+    protected Set<String> getKeySetFromMap(String mapJson) {
         TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
         try {
             HashMap<String, Object> patch = builder.build().readValue(mapJson, typeRef);
@@ -171,7 +167,7 @@ abstract public class BaseRestApiController<T, ID> {
         return new HashSet<String>();
     }
 
-    private Class<T> getClassForT() {
+    protected Class<T> getClassForT() {
         return (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
     } 
 }
