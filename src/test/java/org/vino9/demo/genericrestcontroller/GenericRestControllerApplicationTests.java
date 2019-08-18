@@ -13,6 +13,7 @@ import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -37,7 +38,7 @@ public class GenericRestControllerApplicationTests {
 		mock.perform(get("/transactions/?id=1"))
 				.andDo(print())
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data").value(IsNull.notNullValue()));
+				.andExpect(jsonPath("$." + PAGINATION_DATA).value(IsNull.notNullValue()));
 	}
 
 	@Test

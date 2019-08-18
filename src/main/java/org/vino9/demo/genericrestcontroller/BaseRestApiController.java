@@ -1,7 +1,6 @@
 package org.vino9.demo.genericrestcontroller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
@@ -14,16 +13,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.bind.annotation.*;
+import org.vino9.demo.genericrestcontroller.data.AccessDeniedException;
 import org.vino9.demo.genericrestcontroller.data.EntityNotExistException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_DATA;
 import static org.vino9.demo.genericrestcontroller.RestApiConstants.PAGINATION_META;
@@ -89,32 +86,17 @@ abstract public class BaseRestApiController<T, ID> {
         T currentEntity = findEntityById(id);
 
         // we need to know exactly which fields the request body contain in order to know which fields to update
-        // we'll deserialized the body twice, first time into a T object, 2nd as a map
-        // then use the map keys to find out which fields exists in the request body
-        try {
-            ObjectMapper mapper = builder.build();
+        // we'll deserialized the body twice, first time into a T object,
+        //  2nd as a map then use the keys to determine which fields exists in the request body
+        BeanWrapper wrapperSource = new BeanWrapperImpl(getEntityForPatch(body));
+        BeanWrapper wrapperTarget = new BeanWrapperImpl(currentEntity);
 
-            // black magic to deal with Java type erasure
-            // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
-            Class<T> clazz = getClassForT();
-            T entityPatch = mapper.readValue(body, getClassForT());
-            String className = clazz.getName();
-
-            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
-            HashMap<String, Object> patch = mapper.readValue(body, typeRef);
-
-            BeanWrapper wrapperSource = new BeanWrapperImpl(entityPatch);
-            BeanWrapper wrapperTarget = new BeanWrapperImpl(currentEntity);
-            Object entityId = wrapperSource.getPropertyValue("id");
-
-            for (String key : patch.keySet()) {
-                if (! "id".equalsIgnoreCase(key)) {
-                    log.debug("copying beaning property to entity {} with id of {} ", className, entityId, key);
-                    wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
-                }
+        String idString = String.format("Entity {} with id = {}", currentEntity.getClass().getName(), id.toString());
+        for (String key : getKeySetFromMap(body)) {
+            if (! "id".equalsIgnoreCase(key)) {
+                log.debug("Copying beaning property {} to {} ", key, idString);
+                wrapperTarget.setPropertyValue(key, wrapperSource.getPropertyValue(key));
             }
-        } catch (IOException e) {
-            // since we're reading from a string, this is impossible...
         }
 
         return repository.save(currentEntity);
@@ -122,7 +104,7 @@ abstract public class BaseRestApiController<T, ID> {
 
     @PutMapping("{id}")
     public void put(@PathVariable("id") ID id,
-                                 @Valid @RequestBody T updatedEntity) throws EntityNotExistException {
+                    @Valid @RequestBody T updatedEntity) throws EntityNotExistException {
         T currentEntity = findEntityById(id);
         BeanUtils.copyProperties(updatedEntity, currentEntity, new String[]{ "id" });
         repository.save(updatedEntity);
@@ -153,8 +135,32 @@ abstract public class BaseRestApiController<T, ID> {
         throw new EntityNotExistException(message);
     }
 
+    // deserialize a json payload into an instance of T, used in handler for PATCH method
+    private T getEntityForPatch(String requestBody) {
+        // black magic to deal with Java type erasure
+        // https://stackoverflow.com/questions/3403909/get-generic-type-of-class-at-runtime/19775924
+        Class<T> clazz = getClassForT();
+        try {
+            return builder.build().readValue(requestBody, getClassForT());
+        } catch (IOException e) {
+            // we're using a string, this is not possible
+        }
+        return null;
+    }
+
+    // deserialize a json payload into a Map, then return the keys as a set
+    private Set<String> getKeySetFromMap(String mapJson) {
+        TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
+        try {
+            HashMap<String, Object> patch = builder.build().readValue(mapJson, typeRef);
+            return patch.keySet();
+        } catch (IOException e) {
+            // we're using a string, this is not possible
+        }
+        return new HashSet<String>();
+    }
+
     private Class<T> getClassForT() {
         return (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
     } 
-
 }
